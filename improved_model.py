@@ -11,14 +11,13 @@ import os
 
 MODEL_NAME = "bert-base-uncased"
 MODEL_SAVE_PATH = "./bert_sentiment_model"
-EPOCHS = 6
+EPOCHS = 4
 BATCH_SIZE = 8
 MAX_LEN = 128
-LR = 1e-5
+LR = 2e-5
 
 
-
-# 1. Custom Dataset Class
+#  1. Custom Dataset Class
 class ReviewDataset(Dataset):
     def __init__(self, texts, labels, tokenizer, max_len):
         self.texts = texts
@@ -49,32 +48,25 @@ class ReviewDataset(Dataset):
         }
 
 
-#  2. Load and preprocess data (with neutral upsampling)
+#  2. Load and preprocess data
 def load_data():
     df = pd.read_csv("cleaned_balanced_reviews.csv")
 
-    # Ensure sentiment column exists
+    # Make sure sentiment column exists (0=Negative, 1=Neutral, 2=Positive)
     if 'sentiment' not in df.columns:
         df["sentiment"] = df["rating"].apply(lambda r: 0 if r <= 2 else 1 if r == 3 else 2)
 
-    print(f"✅ Original dataset: {df.shape[0]} samples")
+    print(f"✅ Dataset loaded: {df.shape[0]} samples")
     print(df['sentiment'].value_counts())
 
-    neutral_df = df[df['sentiment'] == 1]
-    df_balanced = pd.concat([df, neutral_df])  # duplicate neutral twice
-    df_balanced = df_balanced.sample(frac=1, random_state=42).reset_index(drop=True)
-
-    print(f"\n✅ After upsampling neutral class:")
-    print(df_balanced['sentiment'].value_counts())
-
     train_texts, val_texts, train_labels, val_labels = train_test_split(
-        df_balanced["cleaned_review"].tolist(),
-        df_balanced["sentiment"].tolist(),
+        df["cleaned_review"].tolist(),
+        df["sentiment"].tolist(),
         test_size=0.2,
         random_state=42,
-        stratify=df_balanced["sentiment"]
+        stratify=df["sentiment"]
     )
-    return train_texts, val_texts, train_labels, val_labels, df_balanced
+    return train_texts, val_texts, train_labels, val_labels
 
 
 #  3. Create data loaders
@@ -118,15 +110,28 @@ def train():
     model = BertForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=3)
     model.to(device)
 
-    train_texts, val_texts, train_labels, val_labels, df_balanced = load_data()
+    df = pd.read_csv("cleaned_balanced_reviews.csv")
+    if 'sentiment' not in df.columns:
+        df["sentiment"] = df["rating"].apply(lambda r: 0 if r <= 2 else 1 if r == 3 else 2)
+
+    print(f"✅ Dataset loaded: {df.shape[0]} samples")
+    print(df['sentiment'].value_counts())
+
+    train_texts, val_texts, train_labels, val_labels = train_test_split(
+        df["cleaned_review"].tolist(),
+        df["sentiment"].tolist(),
+        test_size=0.2,
+        random_state=42,
+        stratify=df["sentiment"]
+    )
+
     train_loader, val_loader = create_data_loaders(tokenizer, train_texts, val_texts, train_labels, val_labels)
 
     optimizer = AdamW(model.parameters(), lr=LR)
     total_steps = len(train_loader) * EPOCHS
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=total_steps)
 
-    # ✅ Compute class weights
-    class_counts = df_balanced['sentiment'].value_counts().sort_index()
+    class_counts = df['sentiment'].value_counts().sort_index()
     total = sum(class_counts)
     class_weights = torch.tensor([total / c for c in class_counts], dtype=torch.float)
     class_weights = class_weights / class_weights.sum()
@@ -134,6 +139,7 @@ def train():
     criterion = torch.nn.CrossEntropyLoss(weight=class_weights.to(device))
     print("🧭 Using class weights:", class_weights)
 
+    # ---------------- TRAINING ----------------
     for epoch in range(EPOCHS):
         model.train()
         total_loss = 0
@@ -161,11 +167,11 @@ def train():
         avg_train_loss = total_loss / len(train_loader)
         print(f"📉 Average training loss: {avg_train_loss:.4f}")
 
+        # ---------------- EVALUATION ----------------
         val_acc, val_report = evaluate(model, val_loader, device)
         print(f"✅ Validation Accuracy: {val_acc:.4f}")
         print(val_report)
 
-        # Save after each epoch
         os.makedirs(MODEL_SAVE_PATH, exist_ok=True)
         model.save_pretrained(MODEL_SAVE_PATH)
         tokenizer.save_pretrained(MODEL_SAVE_PATH)
@@ -176,3 +182,4 @@ def train():
 
 if __name__ == "__main__":
     train()
+
