@@ -3,19 +3,14 @@ import pandas as pd
 import plotly.express as px
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
+from sklearn.metrics import classification_report
 
-# ========================
-# 🧩 PAGE CONFIGURATION
-# ========================
 st.set_page_config(
     page_title="ChatGPT Reviews Sentiment Dashboard",
     page_icon="📊",
     layout="wide"
 )
 
-# ========================
-# 📦 LOAD MODEL FUNCTION
-# ========================
 @st.cache_resource
 def load_model():
     model_path = "./bert_sentiment_model"
@@ -25,66 +20,40 @@ def load_model():
 
 model, tokenizer = load_model()
 
-# ========================
-# 🎨 SIDEBAR FILTERS
-# ========================
-st.sidebar.header("🔍 Filters & Questions")
+st.sidebar.header("🔍 Explore Insights")
 
 question = st.sidebar.selectbox(
-    "Select question",
+    "Select Question to Explore",
     [
-        "What is the distribution of review ratings?",
-        "How do positive and negative reviews vary over time?",
-        "Show sentiment counts for each category."
+        "1️⃣ What is the distribution of review ratings?",
+        "2️⃣ How do positive and negative reviews vary over time?",
+        "3️⃣ Show sentiment counts for each category.",
+        "4️⃣ What percentage of reviews are positive, neutral, or negative?",
+        "5️⃣ Which sentiment category dominates the dataset?",
+        "6️⃣ How balanced is the dataset after upsampling?",
+        "7️⃣ Display a few predicted results with their reviews.",
+        "8️⃣ What is the overall average sentiment score?",
+        "9️⃣ Provide the classification evaluation metrics.",
+        "🔟 Allow CSV download of predictions."
     ]
 )
 
-date_range = st.sidebar.date_input(
-    "📅 Date range",
-    value=[]
-)
-
-selected_ratings = st.sidebar.multiselect(
-    "Show ratings",
-    ["1 ⭐", "2 ⭐", "3 ⭐", "4 ⭐", "5 ⭐"],
-    default=["1 ⭐", "2 ⭐", "3 ⭐", "4 ⭐", "5 ⭐"]
-)
-
-# ========================
-# 🧠 MAIN DASHBOARD
-# ========================
-st.title("📊 ChatGPT Reviews Sentiment Dashboard")
-st.markdown("""
-Use the dropdowns below to explore review sentiment, rating distribution, and overall insights.  
-Upload your dataset to analyze *real reviews* in real time.
-""")
 
 uploaded_file = st.file_uploader("📂 Upload dataset (CSV or XLSX)", type=["csv", "xlsx"])
 
-# ========================
-# 📈 IF FILE UPLOADED
-# ========================
 if uploaded_file:
-    # Read uploaded file
-    try:
-        if uploaded_file.name.endswith(".xlsx"):
-            df = pd.read_excel(uploaded_file)
-        else:
-            df = pd.read_csv(uploaded_file, encoding='utf-8', errors='ignore')
-    except Exception as e:
-        st.error(f"Error loading file: {e}")
-        st.stop()
+    # Load dataset
+    if uploaded_file.name.endswith(".xlsx"):
+        df = pd.read_excel(uploaded_file)
+    else:
+        df = pd.read_csv(uploaded_file, encoding="utf-8", errors="ignore")
 
-    # Expect a column named "review"
     if "review" not in df.columns:
-        st.warning("⚠️ No column named 'review' found. Please upload a dataset with a 'review' column.")
+        st.error("❌ Dataset must contain a column named 'review'")
         st.stop()
 
     st.success("✅ Dataset uploaded successfully!")
 
-    # ========================
-    # 🔮 SENTIMENT PREDICTION
-    # ========================
     texts = df["review"].astype(str).tolist()
     inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True)
     with torch.no_grad():
@@ -94,80 +63,96 @@ if uploaded_file:
     label_map = {0: "Negative", 1: "Neutral", 2: "Positive"}
     df["Predicted_Sentiment"] = [label_map[p] for p in preds]
 
-    # ========================
-    # 📊 SENTIMENT DISTRIBUTION
-    # ========================
-    st.subheader("1️⃣ Distribution of Review Sentiments 📈")
 
-    sentiment_counts = df["Predicted_Sentiment"].value_counts().reset_index()
-    sentiment_counts.columns = ["Sentiment", "Count"]
+    st.title("📊 ChatGPT Reviews Sentiment Analysis Dashboard")
 
-    fig = px.bar(
-        sentiment_counts,
-        x="Sentiment",
-        y="Count",
-        color="Sentiment",
-        text="Count",
-        title="Sentiment Distribution (Positive / Neutral / Negative)",
-        color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"}
-    )
-    fig.update_traces(textposition="outside")
-    st.plotly_chart(fig, use_container_width=True)
+    # 1️⃣ Distribution of review ratings
+    if "1️⃣" in question:
+        st.subheader("Distribution of Review Sentiments 📈")
+        sentiment_counts = df["Predicted_Sentiment"].value_counts().reset_index()
+        sentiment_counts.columns = ["Sentiment", "Count"]
+        fig = px.bar(
+            sentiment_counts,
+            x="Sentiment", y="Count",
+            color="Sentiment",
+            text="Count",
+            color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"},
+            title="Sentiment Distribution (Positive / Neutral / Negative)"
+        )
+        fig.update_traces(textposition="outside")
+        st.plotly_chart(fig, use_container_width=True)
 
-    total_reviews = len(df)
-    avg_rating = round((df["Predicted_Sentiment"].replace({"Negative": 1, "Neutral": 3, "Positive": 5}).mean()), 2)
+    # 2️⃣ Variation over time (if date column exists)
+    elif "2️⃣" in question:
+        if "date" in df.columns:
+            st.subheader("Sentiment Trend Over Time 🕒")
+            df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            trend = df.groupby(["date", "Predicted_Sentiment"]).size().reset_index(name="Count")
+            fig = px.line(trend, x="date", y="Count", color="Predicted_Sentiment", markers=True)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("⚠️ No 'date' column found — upload a dataset with review dates to view trends.")
 
-    col1, col2 = st.columns(2)
-    col1.metric("📦 Total Reviews", total_reviews)
-    col2.metric("⭐ Average Rating (mapped sentiment)", avg_rating)
+    # 3️⃣ Sentiment counts
+    elif "3️⃣" in question:
+        st.subheader("Sentiment Counts Table 📊")
+        st.dataframe(df["Predicted_Sentiment"].value_counts().rename_axis("Sentiment").reset_index(name="Count"))
 
-    # ========================
-    # 🔍 PREVIEW TABLE
-    # ========================
-    st.subheader("2️⃣ Predictions Preview 🧾")
-    st.dataframe(df[["review", "Predicted_Sentiment"]].head(20), use_container_width=True)
+    # 4️⃣ Percentage breakdown
+    elif "4️⃣" in question:
+        st.subheader("Percentage Breakdown (%) 📉")
+        percent = (df["Predicted_Sentiment"].value_counts(normalize=True) * 100).reset_index()
+        percent.columns = ["Sentiment", "Percentage"]
+        st.dataframe(percent)
+        fig = px.pie(percent, names="Sentiment", values="Percentage", color="Sentiment",
+                     color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"},
+                     title="Sentiment Percentage Distribution")
+        st.plotly_chart(fig, use_container_width=True)
 
-    # ========================
-    # 📥 DOWNLOAD RESULTS
-    # ========================
-    csv_data = df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="📥 Download Predictions CSV",
-        data=csv_data,
-        file_name="predicted_sentiments.csv",
-        mime="text/csv"
-    )
+    # 5️⃣ Dominant sentiment
+    elif "5️⃣" in question:
+        st.subheader("Dominant Sentiment 🏆")
+        dominant = df["Predicted_Sentiment"].value_counts().idxmax()
+        st.success(f"🏅 The most frequent sentiment is **{dominant}**.")
 
-    # ========================
-    # 🧮 EVALUATION METRICS (if ground truth exists)
-    # ========================
-    if "true_sentiment" in df.columns:
-        from sklearn.metrics import classification_report
-        st.subheader("✅ Evaluation Metrics (if ground truth exists)")
-        report = classification_report(df["true_sentiment"], df["Predicted_Sentiment"], output_dict=True)
-        st.dataframe(pd.DataFrame(report).transpose())
+    # 6️⃣ Dataset balance
+    elif "6️⃣" in question:
+        st.subheader("Dataset Balance Check ⚖️")
+        counts = df["Predicted_Sentiment"].value_counts()
+        st.bar_chart(counts)
+        st.write("After upsampling, ideally all classes should have similar counts.")
+
+    # 7️⃣ Preview predictions
+    elif "7️⃣" in question:
+        st.subheader("Sample Predictions 🧾")
+        st.dataframe(df[["review", "Predicted_Sentiment"]].head(10), use_container_width=True)
+
+    # 8️⃣ Average sentiment score
+    elif "8️⃣" in question:
+        st.subheader("Average Sentiment Score ⭐")
+        score_map = {"Negative": 1, "Neutral": 3, "Positive": 5}
+        avg_score = df["Predicted_Sentiment"].map(score_map).mean()
+        st.metric("⭐ Average Sentiment Score", round(avg_score, 2))
+
+    # 9️⃣ Evaluation metrics
+    elif "9️⃣" in question:
+        st.subheader("Evaluation Metrics 🧠")
+        if "true_sentiment" in df.columns:
+            report = classification_report(df["true_sentiment"], df["Predicted_Sentiment"], output_dict=True)
+            st.dataframe(pd.DataFrame(report).transpose())
+        else:
+            st.info("⚠️ No ground truth column (`true_sentiment`) found for evaluation.")
+
+    # 🔟 CSV download
+    elif "🔟" in question:
+        st.subheader("📥 Download Predictions CSV")
+        csv_data = df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📥 Download Predictions",
+            data=csv_data,
+            file_name="predicted_sentiments.csv",
+            mime="text/csv"
+        )
 
 else:
-    st.info("📤 No dataset uploaded. Please upload a CSV or XLSX file to begin.")
-    st.markdown("""
-    *Using a small synthetic sample for demo.*
-    """)
-
-    # small synthetic demo data
-    demo_df = pd.DataFrame({
-        "review": [
-            "I love how fast the response was!",
-            "The output didn’t make sense at all.",
-            "Average performance — could be better.",
-            "Very helpful and clear explanations!",
-            "Terrible experience, didn’t answer my question."
-        ],
-        "Predicted_Sentiment": ["Positive", "Negative", "Neutral", "Positive", "Negative"]
-    })
-
-    fig_demo = px.bar(
-        demo_df["Predicted_Sentiment"].value_counts(),
-        color=demo_df["Predicted_Sentiment"].value_counts().index,
-        title="Demo Sentiment Distribution"
-    )
-    st.plotly_chart(fig_demo, use_container_width=True)
+    st.info("📤 Upload a dataset to begin sentiment analysis.")
