@@ -56,19 +56,13 @@ Classifies reviews as:
 ## 🚀 How to Run
 
 ### 1️⃣ Clone the repository
-```bash
+```
 git clone https://github.com/your-username/CHATGPT_REVIEW_SENTIMENT_ANALYSIS.git
 cd CHATGPT_REVIEW_SENTIMENT_ANALYSIS
 2️⃣ Install dependencies
-bash
-Copy code
 pip install -r requirements.txt
 3️⃣ Train / Evaluate the Model
-bash
-Copy code
 python improved_model.py
 python evaluate_model.py
 4️⃣ Launch the Dashboard
-bash
-Copy code
 streamlit run app.py
