@@ -9,18 +9,16 @@ It uses **BERT-based sentiment classification** and provides an interactive **St
 
 CHATGPT_REVIEW_SENTIMENT_ANALYSIS/
 │
-├── app.py # Streamlit dashboard for visualization
-├── chatgpt_style_reviews_dataset.xlsx # Raw review dataset
-├── cleaned_balanced_reviews.csv # Cleaned and preprocessed dataset
-├── data_preprocessing.py # Text cleaning, tokenization, balancing
-├── improved_model.py # Fine-tuned BERT model (3-class)
-├── evaluate_model.py # Model evaluation and accuracy testing
-├── evaluation_results.csv # Predictions and metrics
-├── data_analysis.py # Exploratory data analysis and charts
-└── README.md # Documentation
+  ├── app.py # Streamlit dashboard for visualization
+  ├── chatgpt_style_reviews_dataset.xlsx # Raw review dataset
+  ├── cleaned_balanced_reviews.csv # Cleaned and preprocessed dataset
+  ├── data_preprocessing.py # Text cleaning, tokenization, balancing
+  ├── improved_model.py # Fine-tuned BERT model (3-class)
+  ├── evaluate_model.py # Model evaluation and accuracy testing
+  ├── evaluation_results.csv # Predictions and metrics
+  └── data_analysis.py # Exploratory data analysis and charts
+  
 
-markdown
-Copy code
 
 ---
 
