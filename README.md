@@ -7,8 +7,8 @@ It uses **BERT-based sentiment classification** and provides an interactive **St
 
 ## 📁 Project Structure
 
-CHATGPT_REVIEW_SENTIMENT_ANALYSIS/
-│
+CHATGPT_REVIEW_SENTIMENT_ANALYSIS
+```
   ├── app.py # Streamlit dashboard for visualization
   ├── chatgpt_style_reviews_dataset.xlsx # Raw review dataset
   ├── cleaned_balanced_reviews.csv # Cleaned and preprocessed dataset
@@ -17,10 +17,7 @@ CHATGPT_REVIEW_SENTIMENT_ANALYSIS/
   ├── evaluate_model.py # Model evaluation and accuracy testing
   ├── evaluation_results.csv # Predictions and metrics
   └── data_analysis.py # Exploratory data analysis and charts
-  
-
-
----
+```
 
 ## ⚙️ Features
 
